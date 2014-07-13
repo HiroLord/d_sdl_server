@@ -1,0 +1,10 @@
+{
+    "name": "sdl_gl_server",
+    "description": "A test to play around with D, DUB, and the Dirlect bindings to SDL2Net",
+    "autors": ["Preston Turner"],
+    "homepage": "http://github.com/HiroLord",
+    "licence": "CC0/Public Domain",
+    "dependencies": {
+        "derelict-sdl2":"~>1.0.0",
+    }
+}
