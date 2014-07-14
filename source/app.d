@@ -48,11 +48,13 @@ void main(){
 	bool running = true;
 
 	while (running) {
+		// Must check sockets to be able to call SocketReady();
 		int amnt = SDLNet_CheckSockets(socketSet, 0);
 		if (amnt > 0){
 			writeln("Data is ready to be processed: ", amnt);
 		}
 
+		// See if there is any activity on the server (ie new clients)
 		if (SDLNet_SocketReady(socket) != 0){
 			writeln("New connection");
 			// Listening for an incoming client connection
@@ -72,6 +74,7 @@ void main(){
 				writeln("SDLNet TCP_GetPeerAddress failed: ", SDLNet_GetError());
 			*/
 		}
+		// Run through the clients looking for data
 		for (int j = 0; j < CLIENTS_ALLOWED; j++){
 			if (clients[j] !is null){
 				if (SDLNet_SocketReady(clients[j].socket)){
@@ -98,6 +101,7 @@ void main(){
 	SDLNet_Quit();
 }
 
+// A temporary class to be fleshed out later
 class Client{
 
 	TCPsocket socket;
