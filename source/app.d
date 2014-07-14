@@ -1,8 +1,11 @@
 import std.stdio;
+import core.thread;
 import std.string;
 
 //SDL
 import derelict.sdl2.net;
+
+shared bool running;
 
 void main(){
 
@@ -26,7 +29,8 @@ void main(){
 		return;
 	}
 
-	SDLNet_SocketSet socketSet = SDLNet_AllocSocketSet(CLIENTS_ALLOWED);
+	// Create the socketSet, +1 to include ourselves
+	SDLNet_SocketSet socketSet = SDLNet_AllocSocketSet(CLIENTS_ALLOWED+1);
 	if (!socketSet) {
 		writeln("SDLNet AllocSocketSet failed: ", SDLNet_GetError());
 		return;
@@ -45,11 +49,14 @@ void main(){
 	}
 	SDLNet_TCP_AddSocket(socketSet, socket);
 
-	bool running = true;
+	running = true;
+
+	Thread t1 = new Thread(&listenForInput);
+	t1.start();
 
 	while (running) {
 		// Must check sockets to be able to call SocketReady();
-		int amnt = SDLNet_CheckSockets(socketSet, 10);
+		int amnt = SDLNet_CheckSockets(socketSet, 20);
 		if (amnt > 0){
 			writeln("Data is ready to be processed: ", amnt);
 		}
@@ -88,7 +95,7 @@ void main(){
 							writef("%s", buffer[i]);
 						}
 						writeln("");
-					} else {
+					} else { // We lost connection
 						SDLNet_TCP_DelSocket(socketSet, clients[j].socket);
 						SDLNet_TCP_Close(clients[j].socket);
 						clients[j] = null;
@@ -98,9 +105,31 @@ void main(){
 		}
 	}
 
+	writeln("Closing server.");
+
 	SDLNet_FreeSocketSet(socketSet);
 	SDLNet_TCP_Close(socket);
 	SDLNet_Quit();
+}
+
+void listenForInput(){
+	bool inRunning = true;
+	while (inRunning){
+		string buf;
+		buf = stdin.readln();
+		switch (chomp(buf)) {
+			case "quit":
+			case "exit":
+			case "close":
+				running = false;
+				inRunning = false;
+				break;
+			default:
+				writeln("echo ", buf);
+				break;
+		}
+		
+	}
 }
 
 // A temporary class to be fleshed out later
