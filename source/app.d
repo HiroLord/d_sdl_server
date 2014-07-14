@@ -6,7 +6,7 @@ import derelict.sdl2.net;
 
 void main(){
 
-	immutable ushort CLIENTS_ALLOWED;
+	immutable ushort CLIENTS_ALLOWED = 10;
 
 	// Load the library
 	DerelictSDL2Net.load();
@@ -49,7 +49,7 @@ void main(){
 
 	while (running) {
 		// Must check sockets to be able to call SocketReady();
-		int amnt = SDLNet_CheckSockets(socketSet, 0);
+		int amnt = SDLNet_CheckSockets(socketSet, 10);
 		if (amnt > 0){
 			writeln("Data is ready to be processed: ", amnt);
 		}
@@ -89,7 +89,9 @@ void main(){
 						}
 						writeln("");
 					} else {
+						SDLNet_TCP_DelSocket(socketSet, clients[j].socket);
 						SDLNet_TCP_Close(clients[j].socket);
+						clients[j] = null;
 					}
 				}
 			}
