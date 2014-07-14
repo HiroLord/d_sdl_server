@@ -5,13 +5,18 @@ import std.string;
 import derelict.sdl2.net;
 
 void main(){
+
+	immutable ushort CLIENTS_ALLOWED;
+
 	// Load the library
 	DerelictSDL2Net.load();
 
 	// Setup our sockets and whatnot
-	TCPsocket socket, clientSocket;
+	TCPsocket socket;
 	IPaddress ip;
 	IPaddress *remoteIP;
+
+	Client clients[CLIENTS_ALLOWED];
 
 	// The buffer we will read all data into
 	char buffer[512];
@@ -21,8 +26,14 @@ void main(){
 		return;
 	}
 
+	SDLNet_SocketSet socketSet = SDLNet_AllocSocketSet(CLIENTS_ALLOWED);
+	if (!socketSet) {
+		writeln("SDLNet AllocSocketSet failed: ", SDLNet_GetError());
+		return;
+	}
+
 	// Begins a listening connection on port 2000
-	if (SDLNet_ResolveHost(&ip, null, 2000) < 0) {
+	if (SDLNet_ResolveHost(&ip, null, 1234) < 0) {
 		writeln("SDLNet ResolveHost failed: ", SDLNet_GetError());
 		return;
 	}
@@ -32,37 +43,67 @@ void main(){
 	if (!socket) {
 		writeln("SDLNet TCPOpen failed: ", SDLNet_GetError());
 	}
+	SDLNet_TCP_AddSocket(socketSet, socket);
 
 	bool running = true;
 
 	while (running) {
-		// Listening for an incoming client connection
-		clientSocket = SDLNet_TCP_Accept(socket);
-		if (clientSocket) {
+		int amnt = SDLNet_CheckSockets(socketSet, 0);
+		if (amnt > 0){
+			writeln("Data is ready to be processed: ", amnt);
+		}
+
+		if (SDLNet_SocketReady(socket) != 0){
+			writeln("New connection");
+			// Listening for an incoming client connection
+			for (int i = 0; i < CLIENTS_ALLOWED; i++){
+				if (clients[i] is null){
+					clients[i] = new Client(SDLNet_TCP_Accept(socket));
+					SDLNet_TCP_AddSocket(socketSet, clients[i].socket);
+					break;
+				}
+			}
+
 			/* Contains calls that don't work here...
 			remoteIP = SDLNet_TCP_GetPeerAddress(clientSocket);
-			
 			if (remoteIP)
 				writef("Host connected: %x %d \n", SDLNet_Read32(remoteIP.host), SDLNet_Read16(remoteIP.port));
 			else
 				writeln("SDLNet TCP_GetPeerAddress failed: ", SDLNet_GetError());
 			*/
-
-			bool listening = true;
-			while (listening) {
-				int len;
-				/* Listen for an incomming message */
-				if ((len = SDLNet_TCP_Recv(clientSocket, &buffer, 512)) > 0) {
-					writef("Rec: %d | ", len);
-					writeln("Client said: ", buffer);
-					listening = false;
-					running = false;
+		}
+		for (int j = 0; j < CLIENTS_ALLOWED; j++){
+			if (clients[j] !is null){
+				if (SDLNet_SocketReady(clients[j].socket)){
+					writeln("Data on socket");
+					int len;
+					/* Listen for an incomming message */
+					if ((len = SDLNet_TCP_Recv(clients[j].socket, &buffer, 512)) > 0) {
+						writef("Rec: %d | ", len);
+						writef("Client said: ");
+						for (int i = 0; i < len; i++){
+							writef("%s", buffer[i]);
+						}
+						writeln("");
+					} else {
+						SDLNet_TCP_Close(clients[j].socket);
+					}
 				}
 			}
-			SDLNet_TCP_Close(clientSocket);
 		}
 	}
 
+	SDLNet_FreeSocketSet(socketSet);
 	SDLNet_TCP_Close(socket);
 	SDLNet_Quit();
+}
+
+class Client{
+
+	TCPsocket socket;
+
+	this(TCPsocket socket){
+		this.socket = socket;
+	}
+
 }
